@@ -220,19 +220,22 @@ function showResultBanner(
   setTimeout(() => banner.remove(), 15000)
 }
 
-function sendAnalyze(text: string, callback: (result: TriageResult) => void): void {
-  if (!isExtensionAlive()) return
-  try {
-    chrome.runtime.sendMessage({ type: 'ANALYZE_TEXT', payload: text }, (response: RuntimeResponse<TriageResult>) => {
-      if (chrome.runtime.lastError) return
-      if (response?.ok && response.data) {
-        callback(response.data)
-      }
-    })
-  } catch {
-    // Extension context invalidated — ignore
-  }
+function directTriage(text: string, callback: (result: TriageResult) => void): void {
+  fetch(`${_apiBase}/api/v1/triage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal: AbortSignal.timeout(55000),
+  })
+    .then((r) => r.json())
+    .then((data: TriageResult) => callback(data))
+    .catch(() => {})
 }
+
+function sendAnalyze(text: string, callback: (result: TriageResult) => void): void {
+  directTriage(text, callback)
+}
+
 
 function sendAnalyzeVideoFrame(
   payload: VideoFramePayload,
@@ -573,6 +576,17 @@ chrome.runtime.onMessage.addListener(
     _sender: chrome.runtime.MessageSender,
     sendResponse: (response: unknown) => void,
   ) => {
+    if (message.type === 'RUN_TRIAGE') {
+      const text = message.payload as string | undefined
+      if (text) {
+        directTriage(text, (result) => {
+          showResultBanner(result.verdict, result.confidence, result.summary, result.highlights)
+        })
+      }
+      sendResponse({ ok: true })
+      return true
+    }
+
     if (message.type === 'SHOW_RESULT') {
       const payload = message.payload as TriageResult | undefined
       if (payload) {

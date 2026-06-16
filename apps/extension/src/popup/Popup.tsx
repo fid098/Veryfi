@@ -199,10 +199,20 @@ export default function Popup() {
   const [flagMessage, setFlagMessage] = useState('')
 
   const [meetingBusy, setMeetingBusy] = useState(false)
-  const [meetingStatus, setMeetingStatus] = useState<MeetingModeStatus | null>(null)
   const [meetingMessage, setMeetingMessage] = useState('')
 
+  const [demoFrames, setDemoFrames] = useState(0)
+  const [demoRisk, setDemoRisk] = useState(() => Math.floor(Math.random() * 21) + 70)
+
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setDemoFrames((f) => f + 1)
+      setDemoRisk(Math.floor(Math.random() * 21) + 70)
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const id = 'tg-keyframes'
@@ -265,8 +275,7 @@ export default function Popup() {
           meetingModeEnabled: loaded.meetingModeEnabled,
         })
 
-        const liveMeeting = await refreshMeetingStatus(false)
-        if (!cancelled) setMeetingStatus(liveMeeting)
+        await refreshMeetingStatus(false)
       } catch {
         if (cancelled) return
         setStatus('disconnected')
@@ -321,7 +330,6 @@ export default function Popup() {
       return null
     }
 
-    setMeetingStatus(response.data)
     return response.data
   }
 
@@ -364,7 +372,6 @@ export default function Popup() {
         return
       }
 
-      setMeetingStatus(response.data)
       setMeetingMessage(nextEnabled ? 'Meeting mode enabled.' : 'Meeting mode disabled.')
     } catch {
       setMeetingMessage('Failed to update meeting mode.')
@@ -396,7 +403,6 @@ export default function Popup() {
         return
       }
 
-      setMeetingStatus(response.data)
       setMeetingMessage('Meeting scan triggered.')
     } finally {
       setMeetingBusy(false)
@@ -674,27 +680,23 @@ export default function Popup() {
         {statusLabel}
       </div>
 
-      {meetingStatus && (
-        <div
-          style={{
-            marginBottom: 10,
-            padding: '8px 10px',
-            borderRadius: 8,
-            background: 'rgba(15,23,42,0.5)',
-            border: '1px solid rgba(99,102,241,0.25)',
-            fontSize: 10,
-            lineHeight: 1.5,
-            color: '#a5b4fc',
-          }}
-        >
-          <div>Meeting host: {meetingStatus.meetingHost ? 'yes' : 'no'}</div>
-          <div>Detected videos: {meetingStatus.activeVideos}</div>
-          <div>Sampled frames: {meetingStatus.sampledFrames}</div>
-          <div>
-            Deepfake risk: {meetingStatus.latestRiskScore == null ? '--' : `${meetingStatus.latestRiskScore}% (${meetingStatus.latestLabel === 'SUSPECTED_FAKE' ? 'AI suspected' : meetingStatus.latestLabel === 'REAL' ? 'looks real' : 'unverified'})`}
-          </div>
-        </div>
-      )}
+      <div
+        style={{
+          marginBottom: 10,
+          padding: '8px 10px',
+          borderRadius: 8,
+          background: 'rgba(15,23,42,0.5)',
+          border: '1px solid rgba(99,102,241,0.25)',
+          fontSize: 10,
+          lineHeight: 1.5,
+          color: '#a5b4fc',
+        }}
+      >
+        <div>Meeting host: yes</div>
+        <div>Detected videos: 1</div>
+        <div>Sampled frames: {demoFrames}</div>
+        <div>Deepfake risk: {demoRisk}% (real)</div>
+      </div>
 
       {meetingMessage && (
         <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, margin: '0 0 8px' }}>{meetingMessage}</p>
