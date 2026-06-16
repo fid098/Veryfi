@@ -133,19 +133,17 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // ── Context menu click handler ──────────────────────────────────────────────────
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   // Guard: ignore clicks on other menu items or if no text was selected
   if (info.menuItemId !== 'tg-analyze-selection' || !info.selectionText) return
 
-  try {
-    const result = await analyzeViaAPI(info.selectionText)
-    if (tab?.id) {
-      // Send the result to the content script running in that tab.
-      // The content script's onMessage listener will call showResultBanner().
-      chrome.tabs.sendMessage(tab.id, { type: 'SHOW_RESULT', payload: result })
-    }
-  } catch (err) {
-    console.error('[TruthGuard BG] Context menu analysis failed:', err)
+  // Relay the selected text to the content script so it can call the API
+  // directly. This avoids MV3 service-worker port timeouts on long Gemini calls.
+  if (tab?.id) {
+    chrome.tabs.sendMessage(tab.id, {
+      type: 'RUN_TRIAGE',
+      payload: info.selectionText,
+    })
   }
 })
 
